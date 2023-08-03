@@ -30,8 +30,8 @@ if __name__ == "__main__":
 
 	env = VecNormalize.load("results/results/ppo_ant_5000000", env)
 
-	model = PPO("MlpPolicy", env, verbose=True, learning_rate=3e-4)
-
+	model = PPO("results/results/ppo_ant_5000000")
+	model = PPO.load(log_dir + "ppo_halfcheetah")
 	mean_reward, std_reward = evaluate_policy(model, env)
 
 	# results = model.learn(total_timesteps=args.time_steps)
