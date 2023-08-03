@@ -17,7 +17,6 @@ import numpy as np
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--env", choices=["hopper", "ant", "cheetah"], default="hopper")
-	parser.add_argument("--time_steps", type=int, default=100000)
 	args = parser.parse_args()
 
 	if args.env == "hopper":
@@ -28,19 +27,21 @@ if __name__ == "__main__":
 		env = HalfCheetahMuJoCoEnv()
 		
 	env.reset()
-	env = DummyVecEnv([lambda: env])
-	env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=10.0)
+
+	env = VecNormalize.load("results/results/ppo_ant_5000000", env)
 
 	model = PPO("MlpPolicy", env, verbose=True, learning_rate=3e-4)
 
-	results = model.learn(total_timesteps=args.time_steps)
-	np.save(f"results/{args.env}_{args.time_steps}.npy", np.array(results.stored_rewards))
+	mean_reward, std_reward = evaluate_policy(model, env)
 
-	model.save(f"results/ppo_{args.env}_{args.time_steps}")
-	if not os.path.exists(f"results/ppo_{args.env}_{args.time_steps}"):
-		os.mkdir(f"results/ppo_{args.env}_{args.time_steps}")
-	stats_path = os.path.join(f"results/ppo_{args.env}_{args.time_steps}", "vec_normalize.pkl")
-	env.save(stats_path)
+	# results = model.learn(total_timesteps=args.time_steps)
+	# np.save(f"results/{args.env}_{args.time_steps}.npy", np.array(results.stored_rewards))
+
+	# model.save(f"results/ppo_{args.env}_{args.time_steps}")
+	# if not os.path.exists("results/ppo_{args.env}_{args.time_steps}"):
+	# 	os.mkdir("results/ppo_{args.env}_{args.time_steps}")
+	# stats_path = os.path.join("results/ppo_{args.env}_{args.time_steps}", "vec_normalize.pkl")
+	# env.save(stats_path)
 
 	# env = HopperMuJoCoEnv(render=True)
 	# env = DummyVecEnv([lambda: env])
