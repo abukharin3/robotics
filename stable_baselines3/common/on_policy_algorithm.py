@@ -7,7 +7,7 @@ import torch as th
 from gymnasium import spaces
 
 from stable_baselines3.common.base_class import BaseAlgorithm
-from stable_baselines3.common.buffers import DictRolloutBuffer, RolloutBuffer
+from stable_baselines3.common.buffers import DictRolloutBuffer, HeronBuffer
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
@@ -52,7 +52,7 @@ class OnPolicyAlgorithm(BaseAlgorithm):
     :param supported_action_spaces: The action spaces supported by the algorithm.
     """
 
-    rollout_buffer: RolloutBuffer
+    rollout_buffer: HeronBuffer
     policy: ActorCriticPolicy
 
     def __init__(
@@ -77,6 +77,7 @@ class OnPolicyAlgorithm(BaseAlgorithm):
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
         supported_action_spaces: Optional[Tuple[Type[spaces.Space], ...]] = None,
+        factor_dim=2
     ):
         super().__init__(
             policy=policy,
@@ -101,6 +102,7 @@ class OnPolicyAlgorithm(BaseAlgorithm):
         self.vf_coef = vf_coef
         self.max_grad_norm = max_grad_norm
         self.stored_rewards = []
+        self.factor_dim = factor_dim
 
         if _init_setup_model:
             self._setup_model()
@@ -109,12 +111,13 @@ class OnPolicyAlgorithm(BaseAlgorithm):
         self._setup_lr_schedule()
         self.set_random_seed(self.seed)
 
-        buffer_cls = DictRolloutBuffer if isinstance(self.observation_space, spaces.Dict) else RolloutBuffer
+        buffer_cls = DictRolloutBuffer if isinstance(self.observation_space, spaces.Dict) else HeronBuffer
 
         self.rollout_buffer = buffer_cls(
             self.n_steps,
             self.observation_space,
             self.action_space,
+            factor_dim=self.factor_dim,
             device=self.device,
             gamma=self.gamma,
             gae_lambda=self.gae_lambda,
@@ -131,7 +134,7 @@ class OnPolicyAlgorithm(BaseAlgorithm):
         self,
         env: VecEnv,
         callback: BaseCallback,
-        rollout_buffer: RolloutBuffer,
+        rollout_buffer: HeronBuffer,
         n_rollout_steps: int,
     ) -> bool:
         """
@@ -177,6 +180,7 @@ class OnPolicyAlgorithm(BaseAlgorithm):
                 clipped_actions = np.clip(actions, self.action_space.low, self.action_space.high)
 
             new_obs, rewards, dones, infos = env.step(clipped_actions)
+            factors = infos[0]["factors"]
             
             self.num_timesteps += env.num_envs
 
@@ -212,6 +216,7 @@ class OnPolicyAlgorithm(BaseAlgorithm):
                 self._last_episode_starts,  # type: ignore[arg-type]
                 values,
                 log_probs,
+                factor=factors
             )
 
             self._last_obs = new_obs  # type: ignore[assignment]

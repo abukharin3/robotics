@@ -6,7 +6,7 @@ from pybulletgym.envs.mujoco.envs.locomotion.hopper_env import HopperMuJoCoEnv
 # import rl_zoo3.gym_patches
 # import pybullet_envs
 
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, HERON
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
 
@@ -16,31 +16,31 @@ import numpy as np
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--env", choices=["hopper", "ant", "cheetah"], default="ant")
+	parser.add_argument("--env", choices=["hopper", "ant", "cheetah"], default="hopper")
+	parser.add_argument("--time_steps", type=int, default=100000)
 	args = parser.parse_args()
 
 	if args.env == "hopper":
-		env = HopperMuJoCoEnv(render=True)
+		env = HopperMuJoCoEnv()
 	elif args.env == "ant":
-		env = AntMuJoCoEnv(render=True)
+		env = AntMuJoCoEnv()
 	else:
-		env = HalfCheetahMuJoCoEnv(render=True)
+		env = HalfCheetahMuJoCoEnv()
 		
+	env.reset()
 	env = DummyVecEnv([lambda: env])
+	env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=10.0)
 
-	env = VecNormalize.load("results/baseline_results/ppo_ant_2000000/vec_normalize.pkl", env)
+	model = PPO("MlpPolicy", env, verbose=True, learning_rate=3e-4)
 
-	model = PPO.load("results/baseline_results/ppo_ant_2000000.zip")
-	mean_reward, std_reward = evaluate_policy(model, env)
+	results = model.learn(total_timesteps=args.time_steps)
+	np.save(f"results/{args.env}_{args.time_steps}.npy", np.array(results.stored_rewards))
 
-	# results = model.learn(total_timesteps=args.time_steps)
-	# np.save(f"results/{args.env}_{args.time_steps}.npy", np.array(results.stored_rewards))
-
-	# model.save(f"results/ppo_{args.env}_{args.time_steps}")
-	# if not os.path.exists("results/ppo_{args.env}_{args.time_steps}"):
-	# 	os.mkdir("results/ppo_{args.env}_{args.time_steps}")
-	# stats_path = os.path.join("results/ppo_{args.env}_{args.time_steps}", "vec_normalize.pkl")
-	# env.save(stats_path)
+	model.save(f"results/heron_{args.env}_{args.time_steps}")
+	if not os.path.exists(f"results/heron_{args.env}_{args.time_steps}"):
+		os.mkdir(f"results/ppo_{args.env}_{args.time_steps}")
+	stats_path = os.path.join(f"results/heron_{args.env}_{args.time_steps}", "vec_normalize.pkl")
+	env.save(stats_path)
 
 	# env = HopperMuJoCoEnv(render=True)
 	# env = DummyVecEnv([lambda: env])

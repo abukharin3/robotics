@@ -45,4 +45,4 @@ class HopperMuJoCoEnv(WalkerBaseMuJoCoEnv):
         self.HUD(state, a, done)
         self.reward += sum(self.rewards)
 
-        return state, sum(self.rewards), bool(done), {}
+        return state, sum(self.rewards), bool(done), {"factors": self.rewards}

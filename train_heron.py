@@ -1,4 +1,4 @@
-import os, argparse
+import os, argparse, random
 from pybulletgym.envs.mujoco.envs.locomotion.half_cheetah_env import HalfCheetahMuJoCoEnv
 from pybulletgym.envs.mujoco.envs.locomotion.ant_env import AntMuJoCoEnv
 from pybulletgym.envs.mujoco.envs.locomotion.hopper_env import HopperMuJoCoEnv
@@ -7,18 +7,21 @@ from pybulletgym.envs.mujoco.envs.locomotion.hopper_env import HopperMuJoCoEnv
 # import pybullet_envs
 
 from stable_baselines3 import PPO
+from stable_baselines3.ppo.heron import HERON
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
 
 from stable_baselines3.common.evaluation import evaluate_policy
 import numpy as np
-
+import torch
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--env", choices=["hopper", "ant", "cheetah"], default="hopper")
-	parser.add_argument("--time_steps", type=int, default=100000)
+	parser.add_argument("--env", choices=["hopper", "ant", "cheetah"], default="cheetah")
+	parser.add_argument("--time_steps", type=int, default=1000)
 	parser.add_argument("--seed", type=int, default=0)
+	parser.add_argument("--order", type=str, default="0,1,2,3")
+	parser.add_argument("--sigma", type=float, default=0.0)
 	args = parser.parse_args()
 
 	random.seed(args.seed)
@@ -27,25 +30,33 @@ if __name__ == "__main__":
 
 
 	if args.env == "hopper":
+		order = [int(x) for x in args.order.split(",")][:3]
 		env = HopperMuJoCoEnv()
+		factor_dim=3
 	elif args.env == "ant":
+		order = [int(x) for x in args.order.split(",")]
 		env = AntMuJoCoEnv()
+		factor_dim=4
 	else:
+		order = [int(x) for x in args.order.split(",")][:2]
+		factor_dim=2
 		env = HalfCheetahMuJoCoEnv()
 		
 	env.reset()
 	env = DummyVecEnv([lambda: env])
 	env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=10.0)
 
-	model = PPO("MlpPolicy", env, verbose=True, learning_rate=3e-4)
+	model = HERON("MlpPolicy", env, verbose=True, learning_rate=3e-4, heirarchy=order, sigma=args.sigma, factor_dim=factor_dim)
 
 	results = model.learn(total_timesteps=args.time_steps)
-	np.save(f"results/{args.env}_{args.time_steps}.npy", np.array(results.stored_rewards))
+	print(np.array(results.stored_rewards))
+	order = "_".join(args.order.split(","))
+	np.save(f"results/{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.seed}.npy", np.array(results.stored_rewards))
 
-	model.save(f"results/ppo_{args.env}_{args.time_steps}_{args.seed}")
-	if not os.path.exists(f"results/ppo_{args.env}_{args.time_steps}_{args.seed}"):
-		os.mkdir(f"results/ppo_{args.env}_{args.time_steps}_{args.seed}")
-	stats_path = os.path.join(f"results/ppo_{args.env}_{args.time_steps}_{args.seed}", "vec_normalize.pkl")
+	model.save(f"results/heron_{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.seed}")
+	if not os.path.exists(f"results/heron_{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.seed}"):
+		os.mkdir(f"results/heron_{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.seed}")
+	stats_path = os.path.join(f"results/heron_{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.seed}.pkl")#, "vec_normalize.pkl")
 	env.save(stats_path)
 
 	# env = HopperMuJoCoEnv(render=True)
