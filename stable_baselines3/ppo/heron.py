@@ -15,7 +15,7 @@ from stable_baselines3.common.utils import explained_variance, get_schedule_fn
 SelfPPO = TypeVar("SelfPPO", bound="PPO")
 
 class RewardModel(nn.Module):
-    def __init__(self, obs_shape=17, lr=1e-3, normalize=False, heirarchy=[0,1], sigma=0.0):
+    def __init__(self, obs_shape=17, lr=1e-3, normalize=False, heirarchy=[0,1], sigma=0.0, multiple_sigmas=False):
         super().__init__()
         self.fc1 = nn.Linear(obs_shape, 256)
         self.fc2 = nn.Linear(256, 256)
@@ -23,6 +23,7 @@ class RewardModel(nn.Module):
 
         self.mu = 0
         self.sigma = sigma
+        self.multiple_sigmas = multiple_sigmas
         self.normalize = normalize
 
         self.heirarchy = heirarchy
@@ -39,7 +40,7 @@ class RewardModel(nn.Module):
         return x
 
     def get_loss(self, x, reward_signal):
-        sign = [1, 1]
+        sign = [1, 1, 1, 1]
         total_loss = 0
         total = 0
         correct = 0
@@ -60,24 +61,53 @@ class RewardModel(nn.Module):
             reward_info_i = reward_signal[i]
             reward_info_j = reward_signal[j]
 
+            if not self.multiple_sigmas:
+                self.sigma = [self.sigma] * reward_info_i.shape[0]
+
             # Level 1
-            if reward_info_i[self.heirarchy[0]] * sign[0] > reward_info_j[self.heirarchy[0]] * sign[0] + self.sigma * reward_signal[:, self.heirarchy[0]].std():
+            if reward_info_i[self.heirarchy[0]] * sign[0] > reward_info_j[self.heirarchy[0]] * sign[0] + self.sigma[0] * reward_signal[:, self.heirarchy[0]].std():
                 loss = -1 * th.log(th.sigmoid(reward_i - reward_j))
                 if reward_i > reward_j:
                     correct += 1
-            elif reward_info_j[self.heirarchy[0]] * sign[0] > reward_info_i[self.heirarchy[0]] * sign[0] + self.sigma * reward_signal[:, self.heirarchy[0]].std():
+            elif reward_info_j[self.heirarchy[0]] * sign[0] > reward_info_i[self.heirarchy[0]] * sign[0] + self.sigma[0] * reward_signal[:, self.heirarchy[0]].std():
                 loss = -1 * th.log(th.sigmoid(reward_j - reward_i))
                 if reward_j > reward_i:
                     correct += 1
+            elif reward_info_i.shape[0] == 1:
+                continue
             # Level 2
-            elif reward_info_i[self.heirarchy[1]] * sign[1] > reward_info_j[self.heirarchy[1]] * sign[1] + self.sigma * reward_signal[:, self.heirarchy[1]].std():
+            elif reward_info_i[self.heirarchy[1]] * sign[1] > reward_info_j[self.heirarchy[1]] * sign[1] + self.sigma[1] * reward_signal[:, self.heirarchy[1]].std():
                 loss = -1 * th.log(th.sigmoid(reward_i - reward_j))
                 if reward_i > reward_j:
                     correct += 1
-            elif reward_info_j[self.heirarchy[1]] * sign[1] > reward_info_i[self.heirarchy[1]] * sign[1] + self.sigma * reward_signal[:, self.heirarchy[1]].std():
+            elif reward_info_j[self.heirarchy[1]] * sign[1] > reward_info_i[self.heirarchy[1]] * sign[1] + self.sigma[1] * reward_signal[:, self.heirarchy[1]].std():
                 loss = -1 * th.log(th.sigmoid(reward_j - reward_i))
                 if reward_j > reward_i:
                     correct += 1
+            elif reward_info_i.shape[0] == 2:
+                continue
+            # Level 3
+            elif reward_info_i[self.heirarchy[2]] * sign[2] > reward_info_j[self.heirarchy[2]] * sign[2] + self.sigma[1] * reward_signal[:, self.heirarchy[2]].std():
+                loss = -1 * th.log(th.sigmoid(reward_i - reward_j))
+                if reward_i > reward_j:
+                    correct += 1
+            elif reward_info_j[self.heirarchy[2]] * sign[2] > reward_info_i[self.heirarchy[2]] * sign[2] + self.sigma[1] * reward_signal[:, self.heirarchy[2]].std():
+                loss = -1 * th.log(th.sigmoid(reward_j - reward_i))
+                if reward_j > reward_i:
+                    correct += 1
+            elif reward_info_i.shape[0] == 3:
+                continue
+            # Level 4
+            elif reward_info_i[self.heirarchy[3]] * sign[3] > reward_info_j[self.heirarchy[3]] * sign[3] + self.sigma[1] * reward_signal[:, self.heirarchy[3]].std():
+                loss = -1 * th.log(th.sigmoid(reward_i - reward_j))
+                if reward_i > reward_j:
+                    correct += 1
+            elif reward_info_j[self.heirarchy[3]] * sign[3] > reward_info_i[self.heirarchy[3]] * sign[3] + self.sigma[1] * reward_signal[:, self.heirarchy[3]].std():
+                loss = -1 * th.log(th.sigmoid(reward_j - reward_i))
+                if reward_j > reward_i:
+                    correct += 1
+            elif reward_info_i.shape[0] == 4:
+                continue
             else:
                 continue
             total += 1
@@ -173,7 +203,8 @@ class HERON(OnPolicyAlgorithm):
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
-        factor_dim=2
+        factor_dim=2,
+        multiple_sigmas=False
     ):
         super().__init__(
             policy,
@@ -237,6 +268,7 @@ class HERON(OnPolicyAlgorithm):
         self.RM = None
         self.heirarchy=heirarchy
         self.sigma=sigma
+        self.multiple_sigmas=multiple_sigmas
 
         if _init_setup_model:
             self._setup_model()
@@ -275,7 +307,7 @@ class HERON(OnPolicyAlgorithm):
         total_acc = []
         for rollout_data in self.rollout_buffer.get(self.batch_size):
             if self.RM is None:
-                self.RM = RewardModel(obs_shape = rollout_data.observations.shape[1], lr=1e-3, heirarchy=self.heirarchy, sigma=self.sigma)
+                self.RM = RewardModel(obs_shape = rollout_data.observations.shape[1], lr=1e-3, heirarchy=self.heirarchy, sigma=self.sigma, multiple_sigmas=self.multiple_sigmas)
 
             factors = rollout_data.factors
             obs = rollout_data.observations

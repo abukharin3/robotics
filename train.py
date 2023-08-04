@@ -40,7 +40,7 @@ if __name__ == "__main__":
 	model = PPO("MlpPolicy", env, verbose=True, learning_rate=3e-4)
 
 	results = model.learn(total_timesteps=args.time_steps)
-	np.save(f"results/{args.env}_{args.time_steps}.npy", np.array(results.stored_rewards))
+	np.save(f"results/{args.env}_{args.time_steps}_{args.seed}.npy", np.array(results.stored_rewards))
 
 	model.save(f"results/ppo_{args.env}_{args.time_steps}_{args.seed}")
 	if not os.path.exists(f"results/ppo_{args.env}_{args.time_steps}_{args.seed}"):
