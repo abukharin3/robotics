@@ -55,14 +55,14 @@ if __name__ == "__main__":
 	env = DummyVecEnv([lambda: env])
 	env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=10.0)
 
-	model = HERON("MlpPolicy", env, verbose=True, learning_rate=3e-4, heirarchy=order, sigma=sigmas, factor_dim=factor_dim, multiple_sigmas=multiple_sigmas)
+	model = HERON("MlpPolicy", env, verbose=True, learning_rate=3e-4, heirarchy=order, sigma=sigmas, factor_dim=factor_dim, multiple_sigmas=multiple_sigmas, heron=True)
 
 	results = model.learn(total_timesteps=args.time_steps)
 	print(np.array(results.stored_rewards))
 	order = "_".join(args.order.split(","))
 	if multiple_sigmas:
 		args.sigma = "_".join([str(x) for x in sigmas])
-	
+
 	np.save(f"results/{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.seed}.npy", np.array(results.stored_rewards))
 
 	model.save(f"results/heron_{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.seed}")

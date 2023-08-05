@@ -204,7 +204,8 @@ class HERON(OnPolicyAlgorithm):
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
         factor_dim=2,
-        multiple_sigmas=False
+        multiple_sigmas=False,
+        heron=True
     ):
         super().__init__(
             policy,
@@ -269,6 +270,7 @@ class HERON(OnPolicyAlgorithm):
         self.heirarchy=heirarchy
         self.sigma=sigma
         self.multiple_sigmas=multiple_sigmas
+        self.heron=heron
 
         if _init_setup_model:
             self._setup_model()
@@ -378,8 +380,10 @@ class HERON(OnPolicyAlgorithm):
                 # Value loss using the TD(gae_lambda) target
 
                 pred_returns = self.RM(rollout_data.observations).squeeze()
-                value_loss = F.mse_loss(pred_returns, values_pred)
-                #value_loss = F.mse_loss(rollout_data.returns, values_pred)
+                if self.heron:
+                    value_loss = F.mse_loss(pred_returns, values_pred)
+                else:
+                    value_loss = F.mse_loss(rollout_data.returns, values_pred)
                 value_losses.append(value_loss.item())
 
                 # Entropy loss favor exploration
