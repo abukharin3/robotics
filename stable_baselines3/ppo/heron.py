@@ -205,7 +205,9 @@ class HERON(OnPolicyAlgorithm):
         _init_setup_model: bool = True,
         factor_dim=2,
         multiple_sigmas=False,
-        heron=True
+        heron=True,
+        heuristic=False,
+        alpha=0.5
     ):
         super().__init__(
             policy,
@@ -271,6 +273,8 @@ class HERON(OnPolicyAlgorithm):
         self.sigma=sigma
         self.multiple_sigmas=multiple_sigmas
         self.heron=heron
+        self.heuristic=heuristic
+        self.alpha=alpha
 
         if _init_setup_model:
             self._setup_model()
@@ -380,6 +384,14 @@ class HERON(OnPolicyAlgorithm):
                 if self.heron:
                     pred_returns = self.RM(rollout_data.observations).squeeze()
                     value_loss = F.mse_loss(pred_returns, values_pred)
+                elif self.heuristic:
+
+                    reward = torch.zeros([rollout_data.factors.shape[0]])
+                    for p in range(1, rollout_data.factors.shape[1] + 1):
+                        f = rollout_data.factors[:, self.heirarchy[p-1]]
+                        f = f / torch.norm(f)
+                        reward += f * self.alpha ** i
+                    value_loss = F.mse_loss(reward, values_pred)
                 else:
                     value_loss = F.mse_loss(rollout_data.returns, values_pred)
                 value_losses.append(value_loss.item())
