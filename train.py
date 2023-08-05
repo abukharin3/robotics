@@ -1,4 +1,4 @@
-import os, argparse
+import os, argparse, random
 from pybulletgym.envs.mujoco.envs.locomotion.half_cheetah_env import HalfCheetahMuJoCoEnv
 from pybulletgym.envs.mujoco.envs.locomotion.ant_env import AntMuJoCoEnv
 from pybulletgym.envs.mujoco.envs.locomotion.hopper_env import HopperMuJoCoEnv
@@ -12,6 +12,7 @@ from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv
 
 from stable_baselines3.common.evaluation import evaluate_policy
 import numpy as np
+import torch
 
 
 if __name__ == "__main__":
