@@ -377,8 +377,8 @@ class HERON(OnPolicyAlgorithm):
                     )
                 # Value loss using the TD(gae_lambda) target
 
-                pred_returns = self.RM(rollout_data.observations).squeeze()
                 if self.heron:
+                    pred_returns = self.RM(rollout_data.observations).squeeze()
                     value_loss = F.mse_loss(pred_returns, values_pred)
                 else:
                     value_loss = F.mse_loss(rollout_data.returns, values_pred)
