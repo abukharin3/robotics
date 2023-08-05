@@ -307,31 +307,29 @@ class HERON(OnPolicyAlgorithm):
         # Do a complete pass on the rollout buffer to train the RM
         total_reward = []
         total_acc = []
-        for rollout_data in self.rollout_buffer.get(self.batch_size):
-            if self.RM is None:
-                self.RM = RewardModel(obs_shape = rollout_data.observations.shape[1], lr=1e-3, heirarchy=self.heirarchy, sigma=self.sigma, multiple_sigmas=self.multiple_sigmas)
+        if self.heron:
+            for rollout_data in self.rollout_buffer.get(self.batch_size):
+                if self.RM is None:
+                    self.RM = RewardModel(obs_shape = rollout_data.observations.shape[1], lr=1e-3, heirarchy=self.heirarchy, sigma=self.sigma, multiple_sigmas=self.multiple_sigmas)
 
-            factors = rollout_data.factors
-            obs = rollout_data.observations
-            
-            self.RM.optimizer.zero_grad()
-            loss, acc, _ = self.RM.get_loss(x = obs, reward_signal=factors)
-            loss.backward()
+                factors = rollout_data.factors
+                obs = rollout_data.observations
+                
+                self.RM.optimizer.zero_grad()
+                loss, acc, _ = self.RM.get_loss(x = obs, reward_signal=factors)
+                loss.backward()
 
-            self.RM.optimizer.step()
-            total_reward += [rollout_data.returns.mean()]
-            total_acc += [acc]
+                self.RM.optimizer.step()
+                total_reward += [rollout_data.returns.mean()]
+                total_acc += [acc]
 
-        print(np.array(total_reward).mean())
-        print("ACC", np.array(total_acc).mean())
+            print(np.array(total_reward).mean())
+            print("ACC", np.array(total_acc).mean())
         
 
         continue_training = True
         # train for n_epochs epochs
         for epoch in range(self.n_epochs):
-
-
-                
 
             approx_kl_divs = []
             # Do a complete pass on the rollout buffer
