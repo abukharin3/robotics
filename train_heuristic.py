@@ -21,7 +21,7 @@ if __name__ == "__main__":
 	parser.add_argument("--time_steps", type=int, default=1000)
 	parser.add_argument("--seed", type=int, default=0)
 	parser.add_argument("--order", type=str, default="0,1,2,3")
-	parser.add_argument("--alpha", type=str, default="0.5")
+	parser.add_argument("--alpha", type=float, default=0.5)
 	args = parser.parse_args()
 
 	random.seed(args.seed)
