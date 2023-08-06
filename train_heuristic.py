@@ -42,14 +42,6 @@ if __name__ == "__main__":
 		factor_dim=2
 		env = HalfCheetahMuJoCoEnv()
 
-	
-	if len(args.alpha.split(",")) > 1:
-		sigmas = np.array([float(x) for x in args.alpha.split(",")])
-		multiple_sigmas = True
-	else:
-		sigmas = float(args.alpha)
-		multiple_sigmas = False
-
 		
 	env.reset()
 	env = DummyVecEnv([lambda: env])
