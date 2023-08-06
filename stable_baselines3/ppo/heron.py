@@ -389,8 +389,9 @@ class HERON(OnPolicyAlgorithm):
                     reward = th.zeros([rollout_data.factors.shape[0]])
                     for p in range(1, rollout_data.factors.shape[1] + 1):
                         f = rollout_data.factors[:, self.heirarchy[p-1]]
-                        f = f / th.norm(f)
+                        f = f / (th.norm(f) + 1e-6)
                         reward += f * self.alpha ** p
+                        print(reward, )
                     value_loss = F.mse_loss(reward, values_pred)
                 else:
                     value_loss = F.mse_loss(rollout_data.returns, values_pred)
