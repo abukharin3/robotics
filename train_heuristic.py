@@ -55,7 +55,7 @@ if __name__ == "__main__":
 	env = DummyVecEnv([lambda: env])
 	env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=10.0)
 
-	model = HERON("MlpPolicy", env, verbose=True, learning_rate=3e-4, heirarchy=order, factor_dim=factor_dim, multiple_sigmas=multiple_sigmas, heron=False, heuristic=True, alpha=args.alpha)
+	model = HERON("MlpPolicy", env, verbose=True, learning_rate=3e-4, heirarchy=order, factor_dim=factor_dim, multiple_sigmas=multiple_sigmas, heron=False, heuristic=True, alpha=args.alpha, sigma=0)
 
 	results = model.learn(total_timesteps=args.time_steps)
 	print(np.array(results.stored_rewards))
