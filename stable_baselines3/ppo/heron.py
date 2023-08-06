@@ -386,10 +386,10 @@ class HERON(OnPolicyAlgorithm):
                     value_loss = F.mse_loss(pred_returns, values_pred)
                 elif self.heuristic:
 
-                    reward = torch.zeros([rollout_data.factors.shape[0]])
+                    reward = th.zeros([rollout_data.factors.shape[0]])
                     for p in range(1, rollout_data.factors.shape[1] + 1):
                         f = rollout_data.factors[:, self.heirarchy[p-1]]
-                        f = f / torch.norm(f)
+                        f = f / th.norm(f)
                         reward += f * self.alpha ** i
                     value_loss = F.mse_loss(reward, values_pred)
                 else:
