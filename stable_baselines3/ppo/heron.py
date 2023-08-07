@@ -319,14 +319,6 @@ class HERON(OnPolicyAlgorithm):
                     self.RM = RewardModel(obs_shape = rollout_data.observations.shape[1], lr=1e-3, heirarchy=self.heirarchy, sigma=self.sigma, multiple_sigmas=self.multiple_sigmas)
 
                 factors = rollout_data.factors
-                if factor_min is None:
-                    factor_min = factors.min(0)
-                    facor_max = factors.max(0)
-
-                for k in range(factors.shape[1]):
-                    factor_min[k] = min(factor_min[k], factors.min(0)[k])
-                    factor_max[k] = min(factor_max[k], factors.max(0)[k])
-
                 obs = rollout_data.observations
                 
                 self.RM.optimizer.zero_grad()
@@ -339,7 +331,18 @@ class HERON(OnPolicyAlgorithm):
 
             print(np.array(total_reward).mean())
             print("ACC", np.array(total_acc).mean())
-        
+
+        if self.heuristic:
+            for rollout_data in self.rollout_buffer.get(self.batch_size):
+                factors = rollout_data.factors
+                if factor_min is None:
+                    factor_min = factors.min(0)[0]
+                    factor_max = factors.max(0)[0]
+                    print(factors.min(0))
+
+                for k in range(factors.shape[1]):
+                    factor_min[k] = min(factor_min[k], factors.min(0)[0][k])
+                    factor_max[k] = min(factor_max[k], factors.max(0)[0][k])
 
         continue_training = True
         # train for n_epochs epochs
@@ -399,7 +402,7 @@ class HERON(OnPolicyAlgorithm):
                     reward = th.zeros([rollout_data.factors.shape[0]])
                     for p in range(1, rollout_data.factors.shape[1] + 1):
                         f = rollout_data.factors[:, self.heirarchy[p-1]]
-                        f = (f - factor_min[self.heirarchy[p-1]]) / (factor_max[self.heirarchy[p-1]] - factor_min[self.heirarchy[p-1]])
+                        f = (f - factor_min[self.heirarchy[p-1]]) / (factor_max[self.heirarchy[p-1]] - factor_min[self.heirarchy[p-1]] + 1e-6)
                         reward += f * self.alpha ** p
                     value_loss = F.mse_loss(reward, values_pred)
                 else:
