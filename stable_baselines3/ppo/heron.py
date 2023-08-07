@@ -311,12 +311,22 @@ class HERON(OnPolicyAlgorithm):
         # Do a complete pass on the rollout buffer to train the RM
         total_reward = []
         total_acc = []
+        factor_min = None
+        facot_max = None
         if self.heron:
             for rollout_data in self.rollout_buffer.get(self.batch_size):
                 if self.RM is None:
                     self.RM = RewardModel(obs_shape = rollout_data.observations.shape[1], lr=1e-3, heirarchy=self.heirarchy, sigma=self.sigma, multiple_sigmas=self.multiple_sigmas)
 
                 factors = rollout_data.factors
+                if factor_min is None:
+                    factor_min = factors.min(0)
+                    facor_max = factors.max(0)
+
+                for k in range(factors.shape[1]):
+                    factor_min[k] = min(factor_min[k], factors.min(0)[k])
+                    factor_max[k] = min(factor_max[k], factors.max(0)[k])
+
                 obs = rollout_data.observations
                 
                 self.RM.optimizer.zero_grad()
@@ -389,7 +399,7 @@ class HERON(OnPolicyAlgorithm):
                     reward = th.zeros([rollout_data.factors.shape[0]])
                     for p in range(1, rollout_data.factors.shape[1] + 1):
                         f = rollout_data.factors[:, self.heirarchy[p-1]]
-                        f = f / (th.norm(f) + 1e-6)
+                        f = (f - factor_min[self.heirarchy[p-1]]) / (factor_max[self.heirarchy[p-1]] - factor_min[self.heirarchy[p-1]])
                         reward += f * self.alpha ** p
                     value_loss = F.mse_loss(reward, values_pred)
                 else:
