@@ -53,12 +53,12 @@ if __name__ == "__main__":
 	print(np.array(results.stored_rewards))
 	order = "_".join(args.order.split(","))
 
-	np.save(f"results/{args.env}_{args.time_steps}_{order}_{args.alpha}_{args.seed}.npy", np.array(results.stored_rewards))
+	np.save(f"results/heuristic_main_{args.env}_{args.time_steps}_{order}_{args.alpha}_{args.seed}.npy", np.array(results.stored_rewards))
 
-	model.save(f"results/heuristic{args.env}_{args.time_steps}_{order}_{args.alpha}_{args.seed}")
-	if not os.path.exists(f"results/heuristic{args.env}_{args.time_steps}_{order}_{args.alpha}_{args.seed}"):
-		os.mkdir(f"results/heuristic{args.env}_{args.time_steps}_{order}_{args.alpha}_{args.seed}")
-	stats_path = os.path.join(f"results/heuristic{args.env}_{args.time_steps}_{order}_{args.alpha}_{args.seed}.pkl")#, "vec_normalize.pkl")
+	model.save(f"results/heuristic_main_{args.env}_{args.time_steps}_{order}_{args.alpha}_{args.seed}")
+	if not os.path.exists(f"results/heuristic_main_{args.env}_{args.time_steps}_{order}_{args.alpha}_{args.seed}"):
+		os.mkdir(f"results/heuristic_main_{args.env}_{args.time_steps}_{order}_{args.alpha}_{args.seed}")
+	stats_path = os.path.join(f"results/heuristic_main_{args.env}_{args.time_steps}_{order}_{args.alpha}_{args.seed}.pkl")#, "vec_normalize.pkl")
 	env.save(stats_path)
 
 	# env = HopperMuJoCoEnv(render=True)
