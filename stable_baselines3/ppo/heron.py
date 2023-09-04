@@ -114,7 +114,71 @@ class RewardModel(nn.Module):
             total_loss += loss
         return total_loss / (total + 1e-5), correct / (total + 1e-5), outs
 
-print("IMPORTING HERON" * 50)
+
+class RLHFRewardModel(nn.Module):
+    def __init__(self, obs_shape=17, lr=1e-3, normalize=False, heirarchy=[0,1], sigma=0.0, multiple_sigmas=False):
+        super().__init__()
+        self.fc1 = nn.Linear(obs_shape, 256)
+        self.fc2 = nn.Linear(256, 256)
+        self.fc3 = nn.Linear(256, 1)
+
+        self.mu = 0
+        self.sigma = sigma
+        self.multiple_sigmas = multiple_sigmas
+        self.normalize = normalize
+
+        self.heirarchy = heirarchy
+
+        self.optimizer = optim.Adam(self.parameters(), lr=lr)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+
+        if self.normalize:
+            x = (x - self.mu) / self.sigma
+        return x
+
+    def get_loss(self, x, reward_signal):
+        sign = [1, 1, 1, 1]
+        total_loss = 0
+        total = 0
+        correct = 0
+        outs = []
+        for i in range(x.shape[0]):
+            
+            j = np.random.randint(x.shape[0])
+            while i == j:
+                j = np.random.randint(x.shape[0])
+
+            x_i = x[i]
+            x_j = x[j]
+
+            reward_i = self(x_i)
+            reward_j = self(x_j)
+            
+
+            reward_info_i = reward_signal[i].sum()
+            reward_info_j = reward_signal[j].sum()
+
+            if not self.multiple_sigmas:
+                self.sigma = [self.sigma] * reward_info_i.shape[0]
+
+            # Level 1
+            if reward_info_i > reward_info_j:
+                loss = -1 * th.log(th.sigmoid(reward_i - reward_j))
+                if reward_i > reward_j:
+                    correct += 1
+            elif reward_info_j > reward_info_i:
+                loss = -1 * th.log(th.sigmoid(reward_j - reward_i))
+                if reward_j > reward_i:
+                    correct += 1
+            
+            total += 1
+            total_loss += loss
+        return total_loss / (total + 1e-5), correct / (total + 1e-5), outs
+
 class HERON(OnPolicyAlgorithm):
     """
     Proximal Policy Optimization algorithm (PPO) (clip version)
@@ -207,7 +271,8 @@ class HERON(OnPolicyAlgorithm):
         multiple_sigmas=False,
         heron=True,
         heuristic=False,
-        alpha=0.5
+        alpha=0.5,
+        rlhf = False
     ):
         super().__init__(
             policy,
@@ -316,7 +381,10 @@ class HERON(OnPolicyAlgorithm):
         if self.heron:
             for rollout_data in self.rollout_buffer.get(self.batch_size):
                 if self.RM is None:
-                    self.RM = RewardModel(obs_shape = rollout_data.observations.shape[1], lr=1e-3, heirarchy=self.heirarchy, sigma=self.sigma, multiple_sigmas=self.multiple_sigmas)
+                    if self.rlhf:
+                        self.RM = RLHFRewardModel(obs_shape = rollout_data.observations.shape[1], lr=1e-3, heirarchy=self.heirarchy, sigma=self.sigma, multiple_sigmas=self.multiple_sigmas)
+                    else:
+                        self.RM = RewardModel(obs_shape = rollout_data.observations.shape[1], lr=1e-3, heirarchy=self.heirarchy, sigma=self.sigma, multiple_sigmas=self.multiple_sigmas)
 
                 factors = rollout_data.factors
                 obs = rollout_data.observations

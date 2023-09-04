@@ -22,6 +22,7 @@ if __name__ == "__main__":
 	parser.add_argument("--seed", type=int, default=0)
 	parser.add_argument("--order", type=str, default="0,1,2,3")
 	parser.add_argument("--sigma", type=str, default="0.0")
+	parser.add_argument("--rlhf", action="store_true", default=False)
 	args = parser.parse_args()
 
 	random.seed(args.seed)
@@ -63,12 +64,12 @@ if __name__ == "__main__":
 	if multiple_sigmas:
 		args.sigma = "_".join([str(x) for x in sigmas])
 
-	np.save(f"results/{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.seed}.npy", np.array(results.stored_rewards))
+	np.save(f"results/{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.rlhf}_{args.seed}.npy", np.array(results.stored_rewards))
 
-	model.save(f"results/heron_{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.seed}")
-	if not os.path.exists(f"results/heron_{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.seed}"):
-		os.mkdir(f"results/heron_{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.seed}")
-	stats_path = os.path.join(f"results/heron_{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.seed}.pkl")#, "vec_normalize.pkl")
+	model.save(f"results/heron_{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.rlhf}_{args.seed}")
+	if not os.path.exists(f"results/heron_{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.rlhf}_{args.seed}"):
+		os.mkdir(f"results/heron_{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.rlhf}_{args.seed}")
+	stats_path = os.path.join(f"results/heron_{args.env}_{args.time_steps}_{order}_{args.sigma}_{args.rlhf}_{args.seed}.pkl")#, "vec_normalize.pkl")
 	env.save(stats_path)
 
 	# env = HopperMuJoCoEnv(render=True)
