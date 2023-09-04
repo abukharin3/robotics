@@ -162,10 +162,6 @@ class RLHFRewardModel(nn.Module):
             reward_info_i = reward_signal[i].sum()
             reward_info_j = reward_signal[j].sum()
 
-            if not self.multiple_sigmas:
-                self.sigma = [self.sigma] * reward_info_i.shape[0]
-
-            # Level 1
             if reward_info_i > reward_info_j:
                 loss = -1 * th.log(th.sigmoid(reward_i - reward_j))
                 if reward_i > reward_j:
@@ -340,6 +336,7 @@ class HERON(OnPolicyAlgorithm):
         self.heron=heron
         self.heuristic=heuristic
         self.alpha=alpha
+        self.rlhf=rlhf
 
         if _init_setup_model:
             self._setup_model()
@@ -381,6 +378,7 @@ class HERON(OnPolicyAlgorithm):
         if self.heron:
             for rollout_data in self.rollout_buffer.get(self.batch_size):
                 if self.RM is None:
+                    print(self.rlhf)
                     if self.rlhf:
                         self.RM = RLHFRewardModel(obs_shape = rollout_data.observations.shape[1], lr=1e-3, heirarchy=self.heirarchy, sigma=self.sigma, multiple_sigmas=self.multiple_sigmas)
                     else:
