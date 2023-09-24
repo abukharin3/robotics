@@ -261,7 +261,7 @@ class HERON(OnPolicyAlgorithm):
         policy_kwargs: Optional[Dict[str, Any]] = None,
         verbose: int = 0,
         seed: Optional[int] = None,
-        device: Union[th.device, str] = "auto",
+        device: Union[th.device, str] = "cpu",
         _init_setup_model: bool = True,
         factor_dim=2,
         multiple_sigmas=False,
