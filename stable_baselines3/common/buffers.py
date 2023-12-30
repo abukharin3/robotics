@@ -393,7 +393,7 @@ class HeronBuffer(BaseBuffer):
         self.generator_ready = False
         super().reset()
 
-    def compute_returns_and_advantage(self, last_values: th.Tensor, dones: np.ndarray) -> None:
+    def compute_returns_and_advantage(self, last_values: th.Tensor, dones: np.ndarray, reward_model=None, hierarchy=None, factor_min=None, factor_max=None, alpha=None) -> None:
         """
         Post-processing step: compute the lambda-return (TD(lambda) estimate)
         and GAE(lambda) advantage.
@@ -412,6 +412,7 @@ class HeronBuffer(BaseBuffer):
         :param last_values: state value estimation for the last step (one for each env)
         :param dones: if the last step was a terminal step (one bool for each env).
         """
+        last_values = th.Tensor(last_values)
         # Convert to numpy
         last_values = last_values.clone().cpu().numpy().flatten()
 
@@ -423,7 +424,18 @@ class HeronBuffer(BaseBuffer):
             else:
                 next_non_terminal = 1.0 - self.episode_starts[step + 1]
                 next_values = self.values[step + 1]
-            delta = self.rewards[step] + self.gamma * next_values * next_non_terminal - self.values[step]
+            if reward_model:
+                reward = reward_model(th.Tensor(self.observations[step])).detach().numpy()
+                delta = reward + self.gamma * next_values * next_non_terminal - self.values[step]
+            elif hierarchy:
+                reward = 0
+                for p in range(1, self.factors.shape[1] + 1):
+                    f = self.factors[step, hierarchy[p-1]]
+                    f = (f - factor_min[hierarchy[p-1]]) / (factor_max[hierarchy[p-1]] - factor_min[hierarchy[p-1]] + 1e-6)
+                    reward += f * alpha ** p
+                delta = reward.cpu().numpy() + self.gamma * next_values * next_non_terminal - self.values[step]
+            else:
+                delta = self.rewards[step] + self.gamma * next_values * next_non_terminal - self.values[step]
             last_gae_lam = delta + self.gamma * self.gae_lambda * next_non_terminal * last_gae_lam
             self.advantages[step] = last_gae_lam
         # TD(lambda) estimator, see Github PR #375 or "Telescoping in TD(lambda)"

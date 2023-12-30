@@ -77,7 +77,8 @@ class OnPolicyAlgorithm(BaseAlgorithm):
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
         supported_action_spaces: Optional[Tuple[Type[spaces.Space], ...]] = None,
-        factor_dim=2
+        factor_dim=2,
+        reward_model=None
     ):
         super().__init__(
             policy=policy,

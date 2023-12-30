@@ -26,7 +26,7 @@ class RewardModel(nn.Module):
         self.multiple_sigmas = multiple_sigmas
         self.normalize = normalize
 
-        self.heirarchy = heirarchy
+        self.heirarchy = [int(x) for x in heirarchy]
 
         self.optimizer = optim.Adam(self.parameters(), lr=lr)
 
@@ -63,6 +63,7 @@ class RewardModel(nn.Module):
 
             if not self.multiple_sigmas:
                 self.sigma = [self.sigma] * reward_info_i.shape[0]
+
 
             # Level 1
             if reward_info_i[self.heirarchy[0]] * sign[0] > reward_info_j[self.heirarchy[0]] * sign[0] + self.sigma[0] * reward_signal[:, self.heirarchy[0]].std():
@@ -404,7 +405,6 @@ class HERON(OnPolicyAlgorithm):
                 if factor_min is None:
                     factor_min = factors.min(0)[0]
                     factor_max = factors.max(0)[0]
-                    print(factors.min(0))
 
                 for k in range(factors.shape[1]):
                     factor_min[k] = min(factor_min[k], factors.min(0)[0][k])
@@ -412,6 +412,12 @@ class HERON(OnPolicyAlgorithm):
 
         continue_training = True
         # train for n_epochs epochs
+        if self.heuristic:
+            self.rollout_buffer.compute_returns_and_advantage(last_values=self.rollout_buffer.values[-1], dones=self.rollout_buffer.episode_starts[-1], reward_model=None, 
+                                                                hierarchy=self.heirarchy, factor_min=factor_min, factor_max=factor_max, alpha=self.alpha)
+        else:
+            self.rollout_buffer.compute_returns_and_advantage(last_values=self.rollout_buffer.values[-1], dones=self.rollout_buffer.episode_starts[-1], reward_model=self.RM)
+
         for epoch in range(self.n_epochs):
 
             approx_kl_divs = []
@@ -430,24 +436,6 @@ class HERON(OnPolicyAlgorithm):
 
                 values, log_prob, entropy = self.policy.evaluate_actions(rollout_data.observations, actions)
                 values = values.flatten()
-                # Normalize advantage
-                advantages = rollout_data.advantages
-                # Normalization does not make sense if mini batchsize == 1, see GH issue #325
-                if self.normalize_advantage and len(advantages) > 1:
-                    advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-
-                # ratio between old and new policy, should be one at the first iteration
-                ratio = th.exp(log_prob - rollout_data.old_log_prob)
-
-                # clipped surrogate loss
-                policy_loss_1 = advantages * ratio
-                policy_loss_2 = advantages * th.clamp(ratio, 1 - clip_range, 1 + clip_range)
-                policy_loss = -th.min(policy_loss_1, policy_loss_2).mean()
-
-                # Logging
-                pg_losses.append(policy_loss.item())
-                clip_fraction = th.mean((th.abs(ratio - 1) > clip_range).float()).item()
-                clip_fractions.append(clip_fraction)
 
                 if self.clip_range_vf is None:
                     # No clipping
@@ -458,7 +446,7 @@ class HERON(OnPolicyAlgorithm):
                     values_pred = rollout_data.old_values + th.clamp(
                         values - rollout_data.old_values, -clip_range_vf, clip_range_vf
                     )
-                # Value loss using the TD(gae_lambda) target
+                
 
                 if self.heron:
                     pred_returns = self.RM(rollout_data.observations).squeeze()
@@ -477,6 +465,31 @@ class HERON(OnPolicyAlgorithm):
                     value_loss = F.mse_loss(reward, values_pred)
                 else:
                     value_loss = F.mse_loss(rollout_data.returns, values_pred)
+                
+                # Normalize advantage
+                advantages = rollout_data.advantages# set advantages to values
+
+                # Normalization does not make sense if mini batchsize == 1, see GH issue #325
+                if self.normalize_advantage and len(advantages) > 1:
+                    advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+                # ratio between old and new policy, should be one at the first iteration
+                ratio = th.exp(log_prob - rollout_data.old_log_prob)
+
+                # clipped surrogate loss
+                policy_loss_1 = advantages * ratio
+                policy_loss_2 = advantages * th.clamp(ratio, 1 - clip_range, 1 + clip_range)
+                policy_loss = -th.min(policy_loss_1, policy_loss_2).mean()
+
+                # Logging
+                pg_losses.append(policy_loss.item())
+                clip_fraction = th.mean((th.abs(ratio - 1) > clip_range).float()).item()
+                clip_fractions.append(clip_fraction)
+
+                
+                # Value loss using the TD(gae_lambda) target
+
+                
                 value_losses.append(value_loss.item())
 
                 # Entropy loss favor exploration
